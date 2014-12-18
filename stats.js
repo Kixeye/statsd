@@ -104,7 +104,9 @@ function flushMetrics() {
     conf.deleteCounters = conf.deleteCounters || false;
     for (var counter_key in metrics.counters) {
       if (conf.deleteCounters) {
-        if ((counter_key.indexOf("packets_received") != -1) || (counter_key.indexOf("bad_lines_seen") != -1)) {
+        if ((counter_key.indexOf("packets_received") != -1) ||
+            (counter_key.indexOf("metrics_received") != -1) ||
+            (counter_key.indexOf("bad_lines_seen") != -1)) {
           metrics.counters[counter_key] = 0;
         } else {
          delete(metrics.counters[counter_key]);
@@ -174,11 +176,13 @@ config.configFile(process.argv[2], function (config) {
   //setup the names for the stats stored in counters{}
   bad_lines_seen   = prefixStats + ".bad_lines_seen";
   packets_received = prefixStats + ".packets_received";
+  metrics_received = prefixStats + ".metrics_received";
   timestamp_lag_namespace = prefixStats + ".timestamp_lag";
 
   //now set to zero so we can increment them
   counters[bad_lines_seen]   = 0;
   counters[packets_received] = 0;
+  counters[metrics_received] = 0;
 
   if (!serverLoaded) {
 
@@ -201,6 +205,8 @@ config.configFile(process.argv[2], function (config) {
         if (metrics[midx].length === 0) {
           continue;
         }
+
+        counters[metrics_received]++;
         if (config.dumpMessages) {
           l.log(metrics[midx].toString());
         }
@@ -278,7 +284,27 @@ config.configFile(process.argv[2], function (config) {
 
         switch(cmd) {
           case "help":
-            stream.write("Commands: stats, counters, timers, gauges, delcounters, deltimers, delgauges, health, quit\n\n");
+            stream.write("Commands: stats, counters, timers, gauges, delcounters, deltimers, delgauges, health, config, quit\n\n");
+            break;
+
+          case "config":
+            stream.write("\n");
+            for (var prop in config) {
+              if (!config.hasOwnProperty(prop)) {
+                continue;
+              }
+              if (typeof config[prop] !== 'object') {
+                stream.write(prop + ": " + config[prop] + "\n");
+                continue;
+              }
+              subconfig = config[prop];
+              for (var subprop in subconfig) {
+                if (!subconfig.hasOwnProperty(subprop)) {
+                  continue;
+                }
+                stream.write(prop + " > " + subprop + ": " + subconfig[subprop] + "\n");
+              }
+            }
             break;
 
           case "health":
